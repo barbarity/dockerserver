@@ -15,7 +15,7 @@ services:
       - TZ=${TIMEZONE}
       - UMASK_SET=022
     volumes:
-      - /volume1/plex/config:/config
-      - /media/tv:/tv
-      - /media/movies:/movies
+      - /volume1/docker/plex/config:/config
+      - /volume1/media/tv:/tv
+      - /volume1/media/movies:/movies
     restart: unless-stopped
