@@ -11,7 +11,7 @@ services:
       - UMASK_SET=022
     volumes:
       - /volume1/docker/radarr/config:/config
-      - /volume1/data/media/movies:/movies #optional
+      - /volume1/data:/data #optional
     ports:
       - 7878:7878
     restart: unless-stopped
