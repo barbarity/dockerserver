@@ -1,0 +1,17 @@
+---
+version: "2.1"
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID} 
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - UMASK_SET=022
+    volumes:
+      - /volume1/docker/radarr/config:/config
+      - /volume1/data/media/movies:/movies #optional
+    ports:
+      - 7878:7878
+    restart: unless-stopped

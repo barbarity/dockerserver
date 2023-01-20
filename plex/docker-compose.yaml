@@ -16,6 +16,6 @@ services:
       - UMASK_SET=022
     volumes:
       - /volume1/docker/plex/config:/config
-      - /volume1/media/tv:/tv
-      - /volume1/media/movies:/movies
+      - /volume1/data/media/tv:/tv
+      - /volume1/data/media/movies:/movies
     restart: unless-stopped
