@@ -11,8 +11,8 @@ services:
       - UMASK_SET=022
       - AUTO_UPDATE=true #optional
     volumes:
-      - volume1/docker/jackett/config:/config
-      - volume1/data/torrents/blackhole:/downloads
+      - /volume1/docker/jackett/config:/config
+      - /volume1/data/torrents/blackhole:/downloads
     ports:
       - 9117:9117
     restart: unless-stopped
