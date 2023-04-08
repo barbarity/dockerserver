@@ -1,0 +1,17 @@
+---
+version: "2.1"
+services:
+  plex-meta-manager:
+    image: lscr.io/linuxserver/plex-meta-manager:latest
+    container_name: plex-meta-manager
+    environment:
+      - PUID=${PUID} 
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - PMM_CONFIG=/config/config.yml
+      - PMM_TIME=03:00 #optional
+      - PMM_RUN=False #optional
+      - UMASK_SET=022
+    volumes:
+      - /volume1/docker/plex/config:/config
+    restart: unless-stopped
