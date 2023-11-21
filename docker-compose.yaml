@@ -31,6 +31,19 @@ services:
       - 6881:6881
       - 6881:6881/udp
     restart: unless-stopped
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    environment:
+      - PUID=${PUID} 
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+    volumes:
+      - /volume1/docker/sabnzbd/config:/config
+      - /volume1/data/usenet:/downloads
+    ports:
+      - 5555:8080
+    restart: unless-stopped
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
