@@ -1,6 +1,10 @@
 ---
 version: "3.9"
 services:
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
   bazarr:
     image: lscr.io/linuxserver/bazarr:latest
     container_name: bazarr
