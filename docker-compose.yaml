@@ -35,30 +35,6 @@ services:
       - 6881:6881
       - 6881:6881/udp
     restart: unless-stopped
-  amule:
-    image: ngosang/amule
-    container_name: amule
-    environment:
-      - PUID=${PUID} 
-      - PGID=${PGID}
-      - TZ=${TIMEZONE}
-      - GUI_PWD=${AMULE_PWD}
-      - WEBUI_PWD=${AMULE_PWD}
-      - MOD_AUTO_RESTART_ENABLED=true
-      - MOD_AUTO_RESTART_CRON=0 6 * * *
-      - MOD_FIX_KAD_GRAPH_ENABLED=true
-      - MOD_FIX_KAD_BOOTSTRAP_ENABLED=true
-    ports:
-      - "4711:4711" # web ui
-      - "4712:4712" # remote gui, webserver, cmd ...
-      - "54662:4662" # ed2k tcp
-      - "54665:4665/udp" # ed2k global search udp (tcp port +3)
-      - "54672:4672/udp" # ed2k udp
-    volumes:
-      - /volume1/docker/amule/config:/home/amule/.aMule
-      - /volume1/data/emule/:/incoming
-      - /volume1/data/emule/temp:/temp
-    restart: unless-stopped
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
