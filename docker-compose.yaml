@@ -145,7 +145,7 @@ services:
     volumes:
       - /volume1/docker/homeassistant/config:/config
     restart: unless-stopped
-actualserver:
+  actualserver:
     image: docker.io/actualbudget/actual-server:latest
     ports:
       - '5006:5006'
