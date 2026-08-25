@@ -132,6 +132,35 @@ Home automation platform.
 
 ---
 
+### **12. Actual Server**
+Self-hosted budgeting server ([Actual Budget](https://actualbudget.com/)).
+- **Image**: `docker.io/actualbudget/actual-server:latest`
+- **Ports**: `5006:5006`
+- **Volumes**:
+  - `/volume1/docker/actualserver:/data`
+
+---
+
+### **13. Actual MCP**
+Exposes your Actual Budget data over the [Model Context Protocol](https://github.com/s-stefanov/actual-mcp), so Claude Code (or any MCP-compatible client) can read and update accounts, transactions, categories, payees, and rules.
+- **Image**: `sstefanov/actual-mcp:latest`
+- **Connects to**: `actualserver` over the internal docker network (no separate Actual credentials needed beyond the sync password)
+- **Ports**: `3031:3000`
+- **Volumes**:
+  - `/volume1/docker/actual-mcp:/data` (local sync cache)
+- **Environment**: `ACTUAL_PASSWORD`, `ACTUAL_BUDGET_SYNC_ID`, `BEARER_TOKEN` (see `.env.sample`)
+- **Write access** is enabled (`--enable-write`), and requests must carry a bearer token (`--enable-bearer`) since the port is reachable on the LAN.
+
+To connect Claude Code to it from your machine:
+```bash
+claude mcp add --transport http actual-budget http://<home-server-ip>:3031/mcp \
+  --header "Authorization: Bearer <ACTUAL_MCP_BEARER_TOKEN>"
+```
+
+⚠️ Only forward port `3031` beyond your LAN if you understand the risk — it grants read/write access to your family's financial data.
+
+---
+
 ## **Usage**
 1. Start the containers with:
    ```bash

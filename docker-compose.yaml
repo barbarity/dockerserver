@@ -167,3 +167,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+  actual-mcp:
+    image: sstefanov/actual-mcp:latest
+    container_name: actual-mcp
+    # Talks to actualserver over the internal docker network and exposes an
+    # MCP (Model Context Protocol) endpoint that Claude Code can connect to.
+    command: ['--sse', '--enable-write', '--enable-bearer']
+    environment:
+      - ACTUAL_SERVER_URL=http://actualserver:5006
+      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
+      - BEARER_TOKEN=${ACTUAL_MCP_BEARER_TOKEN}
+    volumes:
+      - /volume1/docker/actual-mcp:/data
+    ports:
+      - '3031:3000'
+    depends_on:
+      - actualserver
+    restart: unless-stopped
