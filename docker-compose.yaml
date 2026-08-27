@@ -30,6 +30,9 @@ services:
       - "443:443"
       - "80:80"
     restart: unless-stopped
+    networks:
+      - default
+      - proxy
 
   watchtower:
     image: containrrr/watchtower
@@ -245,3 +248,8 @@ services:
     restart: unless-stopped
     # No Traefik label: this is a machine-to-machine endpoint for Claude Code,
     # not something you'd browse to. Leave it on its internal port only.
+
+networks:
+  proxy:
+    external: true
+    name: proxy
