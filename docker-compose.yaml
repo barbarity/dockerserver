@@ -1,67 +1,96 @@
 ---
 version: "3.9"
+
 services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=cloudflare
+      - --certificatesresolvers.cloudflare.acme.dnschallenge=true
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
+      # - --api.dashboard=true          # optional: uncomment for the Traefik dashboard
+      # - --api.insecure=false
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_ROOT}/traefik/letsencrypt:/letsencrypt
+    ports:
+      - "443:443"
+      - "80:80"
+    restart: unless-stopped
+
   watchtower:
     image: containrrr/watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
   bazarr:
     image: lscr.io/linuxserver/bazarr:latest
     container_name: bazarr
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
     volumes:
-      - /volume1/docker/bazarr/config:/config
-      - /volume1/data/media/movies:/movies #optional
-      - /volume1/data/media/tv:/tv #optional
+      - ${DOCKER_ROOT}/bazarr/config:/config
+      - ${DATA_ROOT}/media/movies:/movies #optional
+      - ${DATA_ROOT}/media/tv:/tv #optional
     ports:
       - 6767:6767
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.bazarr.rule=Host(`bazarr.${DOMAIN}`)
+      - traefik.http.services.bazarr.loadbalancer.server.port=6767
+
   deluge:
     image: lscr.io/linuxserver/deluge:latest
     container_name: deluge
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
       - UMASK_SET=022
     volumes:
-      - /volume1/docker/deluge/config:/config
-      - /volume1/data/torrents:/downloads
+      - ${DOCKER_ROOT}/deluge/config:/config
+      - ${DATA_ROOT}/torrents:/downloads
     ports:
       - 8112:8112
       - 6881:6881
       - 6881:6881/udp
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.deluge.rule=Host(`torrent.${DOMAIN}`)
+      - traefik.http.services.deluge.loadbalancer.server.port=8112
+
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
     volumes:
-      - /volume1/docker/prowlarr/config:/config
+      - ${DOCKER_ROOT}/prowlarr/config:/config
     ports:
       - 9696:9696
     restart: unless-stopped
-  jackett:
-    image: lscr.io/linuxserver/jackett:latest
-    container_name: jackett
-    environment:
-      - PUID=${PUID} 
-      - PGID=${PGID}
-      - TZ=${TIMEZONE}
-      - UMASK_SET=022
-      - AUTO_UPDATE=true #optional
-    volumes:
-      - /volume1/docker/jackett/config:/config
-      - /volume1/data/torrents/blackhole:/downloads
-    ports:
-      - 9117:9117
-    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)
+      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+
   plex:
     image: lscr.io/linuxserver/plex:latest
     container_name: plex
@@ -69,34 +98,47 @@ services:
     devices:
       - /dev/dri:/dev/dri
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - VERSION=docker
       - PLEX_CLAIM=${PLEX_CLAIM}
       - TZ=${TIMEZONE}
       - UMASK_SET=022
     volumes:
-      - /volume1/docker/plex/config:/config
-      - /volume1/data/media/tv:/tv
-      - /volume1/data/media/movies:/movies
+      - ${DOCKER_ROOT}/plex/config:/config
+      - ${DATA_ROOT}/media/tv:/tv
+      - ${DATA_ROOT}/media/movies:/movies
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)
+      - traefik.http.routers.plex.service=plex
+      - traefik.http.services.plex.loadbalancer.server.url=http://${NAS_LAN_IP}:32400
+      # network_mode: host containers aren't auto-discovered by Traefik's docker
+      # provider, so this points directly at the NAS's LAN IP instead.
+
   tautulli:
     image: lscr.io/linuxserver/tautulli:latest
     container_name: tautulli
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
     volumes:
-      - /volume1/docker/tautulli/config:/config
+      - ${DOCKER_ROOT}/tautulli/config:/config
     ports:
       - 8181:8181
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.tautulli.rule=Host(`tautulli.${DOMAIN}`)
+      - traefik.http.services.tautulli.loadbalancer.server.port=8181
+
   plex-meta-manager:
     image: lscr.io/linuxserver/plex-meta-manager:latest
     container_name: plex-meta-manager
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
       - PMM_CONFIG=/config/config.yml
@@ -104,51 +146,69 @@ services:
       - PMM_RUN=False #optional
       - UMASK_SET=022
     volumes:
-      - /volume1/docker/plex/config:/config
+      - ${DOCKER_ROOT}/plex/config:/config
     restart: unless-stopped
+    # No Traefik labels: this runs as a scheduled job, not a web UI.
+
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
       - UMASK_SET=022
     volumes:
-      - /volume1/docker/radarr/config:/config
-      - /volume1/data:/data #optional
+      - ${DOCKER_ROOT}/radarr/config:/config
+      - ${DATA_ROOT}:/data #optional
     ports:
       - 7878:7878
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.radarr.rule=Host(`movies.${DOMAIN}`)
+      - traefik.http.services.radarr.loadbalancer.server.port=7878
+
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
       - UMASK_SET=022
     volumes:
-      - /volume1/docker/sonarr/config:/config
-      - /volume1/data:/data #optional
+      - ${DOCKER_ROOT}/sonarr/config:/config
+      - ${DATA_ROOT}:/data #optional
     ports:
       - 8989:8989
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.sonarr.rule=Host(`tv.${DOMAIN}`)
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+
   homeassistant:
     image: lscr.io/linuxserver/homeassistant:latest
     container_name: homeassistant
     network_mode: host
     environment:
-      - PUID=${PUID} 
+      - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TIMEZONE}
     volumes:
-      - /volume1/docker/homeassistant/config:/config
+      - ${DOCKER_ROOT}/homeassistant/config:/config
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ha.rule=Host(`ha.${DOMAIN}`)
+      - traefik.http.routers.ha.service=ha
+      - traefik.http.services.ha.loadbalancer.server.url=http://${NAS_LAN_IP}:8123
+      # Same network_mode: host caveat as Plex above.
+
   actualserver:
     image: docker.io/actualbudget/actual-server:latest
-    ports:
-      - '5006:5006'
+    container_name: actualserver
     # environment:
       # Uncomment any of the lines below to set configuration options.
       # - ACTUAL_HTTPS_KEY=/data/selfhost.key
@@ -159,14 +219,18 @@ services:
       # - ACTUAL_UPLOAD_FILE_SIZE_LIMIT_MB=20
       # See all options and more details at https://actualbudget.github.io/docs/Installing/Configuration
     volumes:
-      - /volume1/docker/actualserver:/data
+      - ${DOCKER_ROOT}/actualserver:/data
     healthcheck:
-      # Enable health check for the instance
       test: ['CMD-SHELL', 'node src/scripts/health-check.js']
       interval: 60s
       timeout: 10s
       retries: 3
       start_period: 20s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.actualserver.rule=Host(`expenses.${DOMAIN}`)
+      - traefik.http.services.actualserver.loadbalancer.server.port=5006
+
   actual-mcp:
     image: sstefanov/actual-mcp:latest
     container_name: actual-mcp
@@ -179,7 +243,7 @@ services:
       - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
       - BEARER_TOKEN=${ACTUAL_MCP_BEARER_TOKEN}
     volumes:
-      - /volume1/docker/actual-mcp:/data
+      - ${DOCKER_ROOT}/actual-mcp:/data
     ports:
       - '3031:3000'
     depends_on:
