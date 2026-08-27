@@ -1,4 +1,3 @@
----
 version: "3.9"
 
 services:
@@ -8,6 +7,8 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
@@ -24,6 +25,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${DOCKER_ROOT}/traefik/letsencrypt:/letsencrypt
+      - ${DOCKER_ROOT}/traefik/dynamic:/etc/traefik/dynamic
     ports:
       - "443:443"
       - "80:80"
@@ -109,13 +111,9 @@ services:
       - ${DATA_ROOT}/media/tv:/tv
       - ${DATA_ROOT}/media/movies:/movies
     restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)
-      - traefik.http.routers.plex.service=plex
-      - traefik.http.services.plex.loadbalancer.server.url=http://${NAS_LAN_IP}:32400
-      # network_mode: host containers aren't auto-discovered by Traefik's docker
-      # provider, so this points directly at the NAS's LAN IP instead.
+    # No Traefik labels: network_mode: host containers can't be routed via
+    # Docker labels (no discoverable port). Routed instead via Traefik's
+    # file provider — see traefik/dynamic/host-services.yml.
 
   tautulli:
     image: lscr.io/linuxserver/tautulli:latest
@@ -199,12 +197,8 @@ services:
     volumes:
       - ${DOCKER_ROOT}/homeassistant/config:/config
     restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.ha.rule=Host(`ha.${DOMAIN}`)
-      - traefik.http.routers.ha.service=ha
-      - traefik.http.services.ha.loadbalancer.server.url=http://${NAS_LAN_IP}:8123
-      # Same network_mode: host caveat as Plex above.
+    # No Traefik labels: same reason as Plex above — routed via the file
+    # provider instead of Docker labels.
 
   actualserver:
     image: docker.io/actualbudget/actual-server:latest
@@ -249,3 +243,5 @@ services:
     depends_on:
       - actualserver
     restart: unless-stopped
+    # No Traefik label: this is a machine-to-machine endpoint for Claude Code,
+    # not something you'd browse to. Leave it on its internal port only.
