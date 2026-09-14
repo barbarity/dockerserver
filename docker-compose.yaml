@@ -79,6 +79,24 @@ services:
       - traefik.http.routers.deluge.rule=Host(`torrent.${DOMAIN}`)
       - traefik.http.services.deluge.loadbalancer.server.port=8112
 
+  nzbget:
+    image: lscr.io/linuxserver/nzbget:latest
+    container_name: nzbget
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+    volumes:
+      - ${DOCKER_ROOT}/nzbget/config:/config
+      - ${DATA_ROOT}/usenet:/downloads
+    ports:
+      - 6789:6789
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nzbget.rule=Host(`nzbget.${DOMAIN}`)
+      - traefik.http.services.nzbget.loadbalancer.server.port=6789
+
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
