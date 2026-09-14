@@ -68,7 +68,7 @@ services:
       - UMASK_SET=022
     volumes:
       - ${DOCKER_ROOT}/deluge/config:/config
-      - ${DATA_ROOT}/torrents:/downloads
+      - ${DATA_ROOT}:/data
     ports:
       - 8112:8112
       - 6881:6881
