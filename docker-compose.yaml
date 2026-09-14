@@ -88,7 +88,7 @@ services:
       - TZ=${TIMEZONE}
     volumes:
       - ${DOCKER_ROOT}/nzbget/config:/config
-      - ${DATA_ROOT}/usenet:/downloads
+      - ${DATA_ROOT}:/data
     ports:
       - 6789:6789
     restart: unless-stopped
