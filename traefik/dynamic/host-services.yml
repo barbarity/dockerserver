@@ -14,13 +14,6 @@ http:
         - websecure
       tls:
         certResolver: cloudflare
-    homebridge:
-      rule: "Host(`homebridge.lab.jomafamily.com`)"
-      service: homebridge
-      entryPoints:
-        - websecure
-      tls:
-        certResolver: cloudflare
 
   services:
     plex:
@@ -31,7 +24,3 @@ http:
       loadBalancer:
         servers:
           - url: "http://10.185.0.33:8123"
-    homebridge:
-      loadBalancer:
-        servers:
-          - url: "http://10.185.0.33:8581"

@@ -221,19 +221,6 @@ services:
     # No Traefik labels: same reason as Plex above — routed via the file
     # provider instead of Docker labels.
 
-  homebridge:
-    image: homebridge/homebridge:latest
-    container_name: homebridge
-    network_mode: host
-    environment:
-      - TZ=${TIMEZONE}
-    volumes:
-      - ${DOCKER_ROOT}/homebridge:/homebridge
-    restart: unless-stopped
-    # No Traefik labels: same reason as Plex/HA above — routed via the file
-    # provider instead of Docker labels. Requires host networking for
-    # HomeKit's mDNS/Bonjour discovery on the LAN.
-
   actualserver:
     image: docker.io/actualbudget/actual-server:latest
     container_name: actualserver
