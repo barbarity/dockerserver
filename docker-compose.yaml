@@ -221,6 +221,21 @@ services:
     # No Traefik labels: same reason as Plex above — routed via the file
     # provider instead of Docker labels.
 
+  matter-server:
+    image: ghcr.io/matter-js/python-matter-server:stable
+    container_name: matter-server
+    network_mode: host
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - ${DOCKER_ROOT}/matter-server/data:/data
+      - /run/dbus:/run/dbus:ro
+    restart: unless-stopped
+    # No web UI: HA's Matter integration talks to this over the
+    # ws://localhost:5580/ws WebSocket, both on host networking. The
+    # /run/dbus mount enables BLE commissioning of Thread devices that
+    # aren't already joined to a Thread network via another hub.
+
   actualserver:
     image: docker.io/actualbudget/actual-server:latest
     container_name: actualserver
