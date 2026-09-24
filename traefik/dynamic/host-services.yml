@@ -1,0 +1,26 @@
+http:
+  routers:
+    plex:
+      rule: "Host(`plex.lab.jomafamily.com`)"
+      service: plex
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: cloudflare
+    ha:
+      rule: "Host(`ha.lab.jomafamily.com`)"
+      service: ha
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: cloudflare
+
+  services:
+    plex:
+      loadBalancer:
+        servers:
+          - url: "http://10.185.0.33:32400"
+    ha:
+      loadBalancer:
+        servers:
+          - url: "http://10.185.0.33:8123"
