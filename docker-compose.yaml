@@ -71,8 +71,8 @@ services:
       - ${DATA_ROOT}:/data
     ports:
       - 8112:8112
-      - 6881:6881
-      - 6881:6881/udp
+      - 52500:52500
+      - 52500:52500/udp
     restart: unless-stopped
     labels:
       - traefik.enable=true
