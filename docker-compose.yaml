@@ -230,7 +230,7 @@ services:
     volumes:
       - ${DOCKER_ROOT}/matter-server/data:/data
       - /run/dbus:/run/dbus:ro
-    command: ["--primary-interface", "eth0"]
+    command: ["--storage-path", "/data", "--primary-interface", "eth0"]
     restart: unless-stopped
     # No web UI: HA's Matter integration talks to this over the
     # ws://localhost:5580/ws WebSocket, both on host networking. The
