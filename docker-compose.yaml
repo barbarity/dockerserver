@@ -207,6 +207,39 @@ services:
       - traefik.http.routers.sonarr.rule=Host(`tv.${DOMAIN}`)
       - traefik.http.services.sonarr.loadbalancer.server.port=8989
 
+  profilarr:
+    image: ghcr.io/dictionarry-hub/profilarr:latest
+    container_name: profilarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - ORIGIN=https://profilarr.${DOMAIN}
+      - PARSER_HOST=profilarr-parser
+      - PARSER_PORT=5000
+    volumes:
+      - ${DOCKER_ROOT}/profilarr/config:/config
+    ports:
+      - 6868:6868
+    depends_on:
+      profilarr-parser:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.profilarr.rule=Host(`profilarr.${DOMAIN}`)
+      - traefik.http.services.profilarr.loadbalancer.server.port=6868
+
+  profilarr-parser:
+    image: ghcr.io/dictionarry-hub/profilarr-parser:latest
+    container_name: profilarr-parser
+    expose:
+      - 5000
+    restart: unless-stopped
+    # Powers Profilarr's custom format/quality profile testing (uses the
+    # same release-title parsing logic as Radarr/Sonarr). No Traefik label:
+    # internal only, talked to by profilarr over the default network.
+
   homeassistant:
     image: lscr.io/linuxserver/homeassistant:latest
     container_name: homeassistant
