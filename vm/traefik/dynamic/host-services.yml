@@ -1,0 +1,52 @@
+# Routes for services Traefik can't discover through Docker labels:
+# the apps left on the NAS and Home Assistant OS (its own VM).
+# Copy this file to ${DOCKER_ROOT}/traefik/dynamic/ on the Docker VM;
+# Traefik reloads it automatically when it changes.
+
+http:
+  routers:
+    # --- Home Assistant OS VM ---
+    ha:
+      rule: "Host(`ha.lab.jomafamily.com`)"
+      service: ha
+      entryPoints: [websecure]
+      tls:
+        certResolver: cloudflare
+
+    # --- NAS (10.185.0.33) ---
+    plex:
+      rule: "Host(`plex.lab.jomafamily.com`)"
+      service: plex
+      entryPoints: [websecure]
+      tls:
+        certResolver: cloudflare
+    deluge:
+      rule: "Host(`torrent.lab.jomafamily.com`)"
+      service: deluge
+      entryPoints: [websecure]
+      tls:
+        certResolver: cloudflare
+    nzbget:
+      rule: "Host(`nzbget.lab.jomafamily.com`)"
+      service: nzbget
+      entryPoints: [websecure]
+      tls:
+        certResolver: cloudflare
+
+  services:
+    ha:
+      loadBalancer:
+        servers:
+          - url: "http://10.185.0.201:8123"
+    plex:
+      loadBalancer:
+        servers:
+          - url: "http://10.185.0.33:32400"
+    deluge:
+      loadBalancer:
+        servers:
+          - url: "http://10.185.0.33:8112"
+    nzbget:
+      loadBalancer:
+        servers:
+          - url: "http://10.185.0.33:6789"

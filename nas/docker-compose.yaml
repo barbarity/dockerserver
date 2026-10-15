@@ -1,0 +1,65 @@
+# NAS stack (Synology DS920+, 10.185.0.33): only what has to sit next to the disks.
+# - Plex: Intel Quick Sync hardware transcoding via /dev/dri
+# - Deluge, NZBGet: constant heavy disk I/O (downloading, repairing, unpacking)
+#
+# Everything else (the *arr apps, Tautulli, Traefik...) runs on the Docker VM.
+# No Traefik labels here: Traefik can't discover containers on another host,
+# so these are routed by IP in vm/traefik/dynamic/host-services.yml.
+
+services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    network_mode: host
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - VERSION=docker
+      - PLEX_CLAIM=${PLEX_CLAIM}
+      - TZ=${TIMEZONE}
+      - UMASK_SET=022
+    volumes:
+      - ${DOCKER_ROOT}/plex/config:/config
+      - ${DATA_ROOT}/media/tv:/tv
+      - ${DATA_ROOT}/media/movies:/movies
+    restart: unless-stopped
+
+  deluge:
+    image: lscr.io/linuxserver/deluge:latest
+    container_name: deluge
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - UMASK_SET=022
+    volumes:
+      - ${DOCKER_ROOT}/deluge/config:/config
+      - ${DATA_ROOT}:/data
+    ports:
+      - 8112:8112
+      - 52500:52500
+      - 52500:52500/udp
+    restart: unless-stopped
+
+  nzbget:
+    image: lscr.io/linuxserver/nzbget:latest
+    container_name: nzbget
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+    volumes:
+      - ${DOCKER_ROOT}/nzbget/config:/config
+      - ${DATA_ROOT}:/data
+    ports:
+      - 6789:6789
+    restart: unless-stopped
