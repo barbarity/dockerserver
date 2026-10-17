@@ -38,9 +38,6 @@ services:
       - "443:443"
       - "80:80"
     restart: unless-stopped
-    networks:
-      - default
-      - proxy
 
   watchtower:
     image: containrrr/watchtower
@@ -238,6 +235,3 @@ networks:
       config:
         - subnet: 172.24.0.0/16
           gateway: 172.24.0.1
-  proxy:
-    external: true
-    name: proxy
