@@ -1,6 +1,21 @@
 # Docker Compose Configuration for Media and Automation Services
 
-This `docker-compose.yml` file sets up multiple services for managing and automating media, including tools for downloading, organizing, streaming, and monitoring. Below is a detailed guide on each service and how to configure them.
+## Layout
+
+The services are split into two Portainer Git stacks:
+
+| Stack | Host | Compose file | Services |
+| --- | --- | --- | --- |
+| `nas` | Synology DS920+ (10.185.0.33) | `nas/docker-compose.yaml` | Plex (Quick Sync), Deluge, NZBGet, Watchtower |
+| `vm` | Proxmox Docker VM (10.185.0.202) | `vm/docker-compose.yaml` | Traefik, Radarr, Sonarr, Bazarr, Prowlarr, Profilarr, Tautulli, Actual Server, Actual MCP, Watchtower |
+
+The NAS keeps only what needs the disks or the iGPU. The VM runs the automation and reaches the media over NFS: `10.185.0.33:/volume1/data` is mounted at `/mnt/data` as a single mount, so hardlinks and moves between `/data/torrents` and `/data/media` still happen on the NAS. App configs on the VM stay on local disk (`/opt/docker`), never on NFS.
+
+Home Assistant runs as Home Assistant OS in its own Proxmox VM (10.185.0.201), with Matter as an add-on.
+
+Traefik on the VM routes `*.lab.jomafamily.com`. VM apps are routed by Docker labels; Plex, Deluge, NZBGet (NAS) and Home Assistant are routed by IP in `vm/traefik/dynamic/host-services.yml`. Copy that file to `${DOCKER_ROOT}/traefik/dynamic/` on the VM. Each folder has its own `.env.sample`.
+
+The per-service notes below still apply; paths now come from `DOCKER_ROOT` and `DATA_ROOT` in each stack's `.env`.
 
 ---
 
@@ -89,17 +104,6 @@ Monitor Plex server usage.
 - **Ports**: `8181:8181`
 - **Volumes**:
   - `/volume1/docker/tautulli/config:/config`
-
----
-
-### **8. Plex Meta Manager**
-Enhance Plex with custom metadata.
-- **Image**: `lscr.io/linuxserver/plex-meta-manager:latest`
-- **Environment**:
-  - `PMM_CONFIG=/config/config.yml`
-  - `PMM_TIME=03:00` (optional: scheduled run time)
-- **Volumes**:
-  - `/volume1/docker/plex/config:/config`
 
 ---
 

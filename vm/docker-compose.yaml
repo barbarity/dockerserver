@@ -1,0 +1,219 @@
+# Docker VM stack (Proxmox VM 101, 10.185.0.202): reverse proxy, automation
+# and small apps. Media stays on the NAS and is reached over NFS:
+#   10.185.0.33:/volume1/data mounted at ${DATA_ROOT} (/mnt/data).
+# Keep it ONE mount mapped to /data so hardlinks and instant moves between
+# /data/torrents and /data/media keep working (the NAS does them on its disk).
+# All /config folders live on the VM's local disk (${DOCKER_ROOT}), never on NFS:
+# the *arr apps use SQLite, which doesn't like network filesystems.
+#
+# Home Assistant and Matter run in the Home Assistant OS VM (10.185.0.201).
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=cloudflare
+      - --certificatesresolvers.cloudflare.acme.dnschallenge=true
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
+      # - --api.dashboard=true          # optional: uncomment for the Traefik dashboard
+      # - --api.insecure=false
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_ROOT}/traefik/letsencrypt:/letsencrypt
+      - ${DOCKER_ROOT}/traefik/dynamic:/etc/traefik/dynamic
+    ports:
+      - "443:443"
+      - "80:80"
+    restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # --- Media automation (talks to Deluge/NZBGet/Plex on the NAS by IP) ---
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - UMASK_SET=022
+    volumes:
+      - ${DOCKER_ROOT}/radarr/config:/config
+      - ${DATA_ROOT}:/data
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.radarr.rule=Host(`movies.${DOMAIN}`)
+      - traefik.http.services.radarr.loadbalancer.server.port=7878
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - UMASK_SET=022
+    volumes:
+      - ${DOCKER_ROOT}/sonarr/config:/config
+      - ${DATA_ROOT}:/data
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.sonarr.rule=Host(`tv.${DOMAIN}`)
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+    volumes:
+      - ${DOCKER_ROOT}/bazarr/config:/config
+      - ${DATA_ROOT}/media/movies:/movies
+      - ${DATA_ROOT}/media/tv:/tv
+    ports:
+      - 6767:6767
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.bazarr.rule=Host(`bazarr.${DOMAIN}`)
+      - traefik.http.services.bazarr.loadbalancer.server.port=6767
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+    volumes:
+      - ${DOCKER_ROOT}/prowlarr/config:/config
+    ports:
+      - 9696:9696
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)
+      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+
+  profilarr:
+    image: ghcr.io/dictionarry-hub/profilarr:latest
+    container_name: profilarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - ORIGIN=https://profilarr.${DOMAIN}
+      - PARSER_HOST=profilarr-parser
+      - PARSER_PORT=5000
+    volumes:
+      - ${DOCKER_ROOT}/profilarr/config:/config
+    ports:
+      - 6868:6868
+    depends_on:
+      profilarr-parser:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.profilarr.rule=Host(`profilarr.${DOMAIN}`)
+      - traefik.http.services.profilarr.loadbalancer.server.port=6868
+
+  profilarr-parser:
+    image: ghcr.io/dictionarry-hub/profilarr-parser:latest
+    container_name: profilarr-parser
+    expose:
+      - 5000
+    restart: unless-stopped
+    # Internal only, talked to by profilarr over the default network.
+
+  # --- Plex companion (talks to Plex on the NAS) ---
+
+  tautulli:
+    image: lscr.io/linuxserver/tautulli:latest
+    container_name: tautulli
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+    volumes:
+      - ${DOCKER_ROOT}/tautulli/config:/config
+    ports:
+      - 8181:8181
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.tautulli.rule=Host(`tautulli.${DOMAIN}`)
+      - traefik.http.services.tautulli.loadbalancer.server.port=8181
+
+  # --- Budget ---
+
+  actualserver:
+    image: docker.io/actualbudget/actual-server:latest
+    container_name: actualserver
+    volumes:
+      - ${DOCKER_ROOT}/actualserver:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'node src/scripts/health-check.js']
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.actualserver.rule=Host(`expenses.${DOMAIN}`)
+      - traefik.http.services.actualserver.loadbalancer.server.port=5006
+
+  actual-mcp:
+    image: sstefanov/actual-mcp:latest
+    container_name: actual-mcp
+    # Talks to actualserver over the internal docker network and exposes an
+    # MCP (Model Context Protocol) endpoint that Claude Code can connect to.
+    command: ['--sse', '--enable-write', '--enable-bearer']
+    environment:
+      - ACTUAL_SERVER_URL=http://actualserver:5006
+      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
+      - BEARER_TOKEN=${ACTUAL_MCP_BEARER_TOKEN}
+    volumes:
+      - ${DOCKER_ROOT}/actual-mcp:/data
+    ports:
+      - '3031:3000'
+    depends_on:
+      - actualserver
+    restart: unless-stopped
+    # No Traefik label: machine-to-machine endpoint, LAN port only.
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.24.0.0/16
+          gateway: 172.24.0.1
