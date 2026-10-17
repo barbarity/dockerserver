@@ -7,7 +7,7 @@ The services are split into two Portainer Git stacks:
 | Stack | Host | Compose file | Services |
 | --- | --- | --- | --- |
 | `nas` | Synology DS920+ (10.185.0.33) | `nas/docker-compose.yaml` | Plex (Quick Sync), Deluge, NZBGet, Watchtower |
-| `vm` | Proxmox Docker VM (10.185.0.202) | `vm/docker-compose.yaml` | Traefik, Radarr, Sonarr, Bazarr, Prowlarr, Profilarr, Tautulli, Plex Meta Manager, Actual Server, Actual MCP, Watchtower |
+| `vm` | Proxmox Docker VM (10.185.0.202) | `vm/docker-compose.yaml` | Traefik, Radarr, Sonarr, Bazarr, Prowlarr, Profilarr, Tautulli, Actual Server, Actual MCP, Watchtower |
 
 The NAS keeps only what needs the disks or the iGPU. The VM runs the automation and reaches the media over NFS: `10.185.0.33:/volume1/data` is mounted at `/mnt/data` as a single mount, so hardlinks and moves between `/data/torrents` and `/data/media` still happen on the NAS. App configs on the VM stay on local disk (`/opt/docker`), never on NFS.
 
@@ -104,17 +104,6 @@ Monitor Plex server usage.
 - **Ports**: `8181:8181`
 - **Volumes**:
   - `/volume1/docker/tautulli/config:/config`
-
----
-
-### **8. Plex Meta Manager**
-Enhance Plex with custom metadata.
-- **Image**: `lscr.io/linuxserver/plex-meta-manager:latest`
-- **Environment**:
-  - `PMM_CONFIG=/config/config.yml`
-  - `PMM_TIME=03:00` (optional: scheduled run time)
-- **Volumes**:
-  - `/volume1/docker/plex/config:/config`
 
 ---
 

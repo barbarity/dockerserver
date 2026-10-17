@@ -153,7 +153,7 @@ services:
     restart: unless-stopped
     # Internal only, talked to by profilarr over the default network.
 
-  # --- Plex companions (talk to Plex on the NAS at ${NAS_LAN_IP}:32400) ---
+  # --- Plex companion (talks to Plex on the NAS) ---
 
   tautulli:
     image: lscr.io/linuxserver/tautulli:latest
@@ -171,24 +171,6 @@ services:
       - traefik.enable=true
       - traefik.http.routers.tautulli.rule=Host(`tautulli.${DOMAIN}`)
       - traefik.http.services.tautulli.loadbalancer.server.port=8181
-
-  plex-meta-manager:
-    image: lscr.io/linuxserver/plex-meta-manager:latest
-    container_name: plex-meta-manager
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TIMEZONE}
-      - PMM_CONFIG=/config/config.yml
-      - PMM_TIME=03:00 #optional
-      - PMM_RUN=False #optional
-      - UMASK_SET=022
-    volumes:
-      # Its own folder now (it used to share Plex's config folder on the NAS).
-      # Copy config.yml here and set plex.url to http://<NAS_LAN_IP>:32400.
-      - ${DOCKER_ROOT}/plex-meta-manager/config:/config
-    restart: unless-stopped
-    # No Traefik labels: scheduled job, no web UI.
 
   # --- Budget ---
 
