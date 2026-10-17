@@ -13,6 +13,14 @@ http:
       tls:
         certResolver: cloudflare
 
+    # --- Portainer on the Docker VM (started outside the vm stack) ---
+    portainer:
+      rule: "Host(`portainer.lab.jomafamily.com`)"
+      service: portainer
+      entryPoints: [websecure]
+      tls:
+        certResolver: cloudflare
+
     # --- NAS (10.185.0.33) ---
     plex:
       rule: "Host(`plex.lab.jomafamily.com`)"
@@ -38,6 +46,12 @@ http:
       loadBalancer:
         servers:
           - url: "http://10.185.0.201:8123"
+    portainer:
+      loadBalancer:
+        # Portainer only serves HTTPS on 9443 with a self-signed certificate
+        serversTransport: portainer-insecure
+        servers:
+          - url: "https://10.185.0.202:9443"
     plex:
       loadBalancer:
         servers:
@@ -50,3 +64,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://10.185.0.33:6789"
+
+  serversTransports:
+    portainer-insecure:
+      insecureSkipVerify: true
