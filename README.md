@@ -37,7 +37,7 @@ The per-service notes below still apply; paths now come from `DOCKER_ROOT` and `
 
 ### **1. Watchtower**
 Automatically updates your Docker containers.
-- **Image**: `containrrr/watchtower`
+- **Image**: `nickfedor/watchtower` (maintained fork; the original `containrrr/watchtower` no longer works with Docker 29)
 - **Volumes**: 
   - `/var/run/docker.sock:/var/run/docker.sock`
 
