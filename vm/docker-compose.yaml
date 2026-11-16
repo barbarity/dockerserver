@@ -6,6 +6,8 @@
 # All /config folders live on the VM's local disk (${DOCKER_ROOT}), never on NFS:
 # the *arr apps use SQLite, which doesn't like network filesystems.
 #
+# Immich (photos) runs here too; its library is on the NAS over NFS.
+#
 # Home Assistant and Matter run in the Home Assistant OS VM (10.185.0.201).
 
 services:
@@ -210,6 +212,81 @@ services:
       - actualserver
     restart: unless-stopped
     # No Traefik label: machine-to-machine endpoint, LAN port only.
+
+  # --- Photos (Immich) ---
+  # Library (originals) lives on the NAS over NFS under ${IMMICH_UPLOAD_LOCATION};
+  # Postgres and the ML model cache stay on the VM's local disk. Immich does not
+  # support network shares for the database.
+  # Version is pinned via IMMICH_VERSION and Watchtower is disabled for the Immich
+  # containers: server, ML and database schema must be upgraded together
+  # (read the release notes, bump IMMICH_VERSION, redeploy the stack).
+
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-v3}
+    container_name: immich-server
+    # Run as the NAS user so writes to the NFS library are not root-squashed.
+    user: "${PUID}:${PGID}"
+    environment:
+      - TZ=${TIMEZONE}
+      - DB_HOSTNAME=immich-db
+      - DB_USERNAME=immich
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+    volumes:
+      - ${IMMICH_UPLOAD_LOCATION:-/mnt/data/photos}:/data
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - 2283:2283
+    depends_on:
+      immich-redis:
+        condition: service_healthy
+      immich-db:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.immich.rule=Host(`photos.${DOMAIN}`)
+      - traefik.http.services.immich.loadbalancer.server.port=2283
+      - com.centurylinklabs.watchtower.enable=false
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3}
+    container_name: immich-machine-learning
+    environment:
+      - TZ=${TIMEZONE}
+      - MACHINE_LEARNING_MODEL_REVISION=v2
+    volumes:
+      - ${DOCKER_ROOT}/immich/model-cache:/cache
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+    # Internal only, talked to by immich-server over the default network.
+
+  immich-redis:
+    image: docker.io/valkey/valkey:9@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    container_name: immich-redis
+    healthcheck:
+      test: redis-cli ping | grep -q PONG || exit 1
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+  immich-db:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    container_name: immich-db
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASSWORD}
+      POSTGRES_DB: immich
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+      # DB_STORAGE_TYPE: 'HDD'   # uncomment if the VM disk is not an SSD
+    volumes:
+      - ${DOCKER_ROOT}/immich/postgres:/var/lib/postgresql/data
+    shm_size: 128mb
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
 
 networks:
   default:

@@ -7,7 +7,7 @@ The services are split into two Portainer Git stacks:
 | Stack | Host | Compose file | Services |
 | --- | --- | --- | --- |
 | `nas` | Synology DS920+ (10.185.0.33) | `nas/docker-compose.yaml` | Plex (Quick Sync), Deluge, NZBGet, Watchtower |
-| `vm` | Proxmox Docker VM (10.185.0.202) | `vm/docker-compose.yaml` | Traefik, Radarr, Sonarr, Bazarr, Prowlarr, Profilarr, Tautulli, Actual Server, Actual MCP, Watchtower |
+| `vm` | Proxmox Docker VM (10.185.0.202) | `vm/docker-compose.yaml` | Traefik, Radarr, Sonarr, Bazarr, Prowlarr, Profilarr, Tautulli, Actual Server, Actual MCP, Immich, Watchtower |
 
 The NAS keeps only what needs the disks or the iGPU. The VM runs the automation and reaches the media over NFS: `10.185.0.33:/volume1/data` is mounted at `/mnt/data` as a single mount, so hardlinks and moves between `/data/torrents` and `/data/media` still happen on the NAS. App configs on the VM stay on local disk (`/opt/docker`), never on NFS.
 
@@ -162,6 +162,18 @@ claude mcp add --transport http actual-budget http://<home-server-ip>:3031/mcp \
 ```
 
 ⚠️ Only forward port `3031` beyond your LAN if you understand the risk — it grants read/write access to your family's financial data.
+
+---
+
+### **14. Immich**
+Self-hosted photo and video library ([Immich](https://immich.app/)), on the Docker VM at `https://photos.${DOMAIN}` (LAN port `2283`).
+- **Containers**: `immich-server`, `immich-machine-learning` (search/faces), `immich-redis` (Valkey), `immich-db` (Postgres with VectorChord)
+- **Library**: `${IMMICH_UPLOAD_LOCATION}` (default `/mnt/data/photos`, i.e. `/volume1/data/photos` on the NAS over NFS). Create that folder on the NAS first; the server runs as `PUID:PGID` so NFS does not squash writes.
+- **Database and model cache**: `${DOCKER_ROOT}/immich/postgres` and `${DOCKER_ROOT}/immich/model-cache` on the VM's local disk. Immich does not support network shares for the database.
+- **Environment**: `IMMICH_VERSION`, `IMMICH_UPLOAD_LOCATION`, `IMMICH_DB_PASSWORD` (see `vm/.env.sample`)
+- **Upgrades are manual**: Watchtower is disabled on these containers. Read the release notes, bump `IMMICH_VERSION`, redeploy the stack.
+- **Backups**: the library is on the NAS (cover `/volume1/data/photos` in your NAS backup); the database is regenerable-but-slow, so also back up `${DOCKER_ROOT}/immich/postgres` or use Immich's built-in DB dumps (written into the library).
+- First user to register becomes admin. Set the server URL in Administration > Settings so share links use `photos.${DOMAIN}`.
 
 ---
 
