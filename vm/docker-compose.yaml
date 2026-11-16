@@ -29,6 +29,11 @@ services:
       # Check the _acme-challenge TXT record against public resolvers instead of the
       # container's default (Docker DNS -> LAN DNS), which doesn't see Cloudflare's records.
       - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+      # Skip Traefik's own check that the TXT record is visible: stale _acme-challenge
+      # records made resolvers cache a TXT set without the fresh token, so the check
+      # timed out. Let's Encrypt still validates the record itself. Wait 30s first.
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.propagation.delayBeforeChecks=30s
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.propagation.disableChecks=true
       - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
       # - --api.dashboard=true          # optional: uncomment for the Traefik dashboard
