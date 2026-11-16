@@ -26,6 +26,9 @@ services:
       - --entrypoints.websecure.http.tls.certresolver=cloudflare
       - --certificatesresolvers.cloudflare.acme.dnschallenge=true
       - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      # Check the _acme-challenge TXT record against public resolvers instead of the
+      # container's default (Docker DNS -> LAN DNS), which doesn't see Cloudflare's records.
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
       - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
       # - --api.dashboard=true          # optional: uncomment for the Traefik dashboard
