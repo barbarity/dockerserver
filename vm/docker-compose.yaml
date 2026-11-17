@@ -24,6 +24,10 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.tls.certresolver=cloudflare
+      # Large uploads (e.g. 14 GB videos to Immich): readTimeout covers reading the whole
+      # request body and defaults to 60s, so long uploads were cut with a 502. 0s = no limit.
+      - --entrypoints.websecure.transport.respondingTimeouts.readTimeout=0s
+      - --entrypoints.websecure.transport.respondingTimeouts.idleTimeout=600s
       - --certificatesresolvers.cloudflare.acme.dnschallenge=true
       - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
       # Check the _acme-challenge TXT record against public resolvers instead of the
